@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.67 2001/12/17 19:52:32 mthurn Exp $
+# $Id: HotBot.pm,v 1.68 2002/02/05 20:23:53 mthurn Exp $
 
 =head1 NAME
 
@@ -457,7 +457,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.25';
+$VERSION = '2.26';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -484,7 +484,8 @@ sub native_setup_search
   $self->{'_hits_per_page'} = $DEFAULT_HITS_PER_PAGE;
   # $self->timeout(120);  # HotBot used to be notoriously slow
 
-  $self->user_agent(0);
+  # As of 2002-02, hotbot.com refuses robots:
+  $self->user_agent('non-robot');
   # hotbot.pm seems to send a DIFFERENT page format if the client is
   # MSIE.  So, make sure they DON'T think we're MSIE!  Added by Martin
   # Thurn 2001-07-19.
@@ -576,7 +577,7 @@ sub parse_tree
     if (ref $oBQ)
       {
       my $sBQ = $oBQ->as_text;
-      print STDERR " +   BQ == $sBQ\n" if 2 <= $self->{_debug};
+      # print STDERR " +   BQ == $sBQ\n" if 2 <= $self->{_debug};
       if ($sBQ =~ m!(?:\A|\s)([0-9,]+)\s+Matches!i)
         {
         my $sCount = $1;
@@ -593,28 +594,28 @@ sub parse_tree
   foreach my $oTD (@aoTD)
     {
     next TD_TAG unless ref $oTD;
-    print STDERR " +   try oTD ===", $oTD->as_text, "===\n" if 2 <= $self->{_debug};
+    # print STDERR " +   try oTD ===", $oTD->as_text, "===\n" if 2 <= $self->{_debug};
     # See if this is the number of a result:
     next TD_TAG unless $oTD->as_text =~ m!\A\s*\d+\.(\s|\240|&nbsp;)*\Z!;
     my $oTDtitle = $oTD->right;
     # print STDERR " +   oTDtitle is ===$oTDtitle===\n" if 2 <= $self->{_debug};
     next TD_TAG unless ref $oTDtitle;
     my $sTitle = $oTDtitle->as_text;
-    print STDERR " +   found title ===$sTitle===\n" if 2 <= $self->{_debug};
+    # print STDERR " +   found title ===$sTitle===\n" if 2 <= $self->{_debug};
     my $oTRmom = $oTD->parent;
     next TD_TAG unless ref $oTRmom;
     # print STDERR " +   TRmom is ===", $oTRmom->as_HTML, "===\n" if 2 <= $self->{_debug};
     my $oTRrest = $oTRmom->right;
     next TD_TAG unless ref $oTRrest;
-    print STDERR " +   TRrest is ===", $oTRrest->as_HTML, "===\n" if 2 <= $self->{_debug};
+    # print STDERR " +   TRrest is ===", $oTRrest->as_HTML, "===\n" if 2 <= $self->{_debug};
     my @aoFONT = $oTRrest->look_down('_tag', 'font');
     my $oFONT = shift @aoFONT;
     next TD_TAG unless ref $oFONT;
-    print STDERR " +   description is in ===", $oFONT->as_HTML, "===\n" if 2 <= $self->{_debug};
+    # print STDERR " +   description is in ===", $oFONT->as_HTML, "===\n" if 2 <= $self->{_debug};
     my $sDesc = $oFONT->as_text;
     $oFONT = shift @aoFONT;
     next TD_TAG unless ref $oFONT;
-    print STDERR " +   URL is in ===", $oFONT->as_HTML, "===\n" if 2 <= $self->{_debug};
+    # print STDERR " +   URL is in ===", $oFONT->as_HTML, "===\n" if 2 <= $self->{_debug};
     my $oI = $oFONT->look_down('_tag', 'i');
     my $sDate = '';
     if (ref $oI)
@@ -641,6 +642,7 @@ sub parse_tree
     next unless ref $oA;
     if ($oA->as_text eq 'next')
       {
+      print STDERR " +   oAnext is ===", $oA->as_HTML, "===\n" if 2 <= $self->{_debug};
       $self->{_next_url} = $HTTP::URI_CLASS->new_abs($oA->attr('href'), $self->{'_prev_url'});
       last A_TAG;
       } # if

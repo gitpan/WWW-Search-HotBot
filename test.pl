@@ -47,10 +47,12 @@ GUI_TEST:
 &run_gui_test('Ma'.'rtin AND Thu'.'rn AND Bi'.'ble AND Galo'.'ob', 1, 10, $debug);
 # This query returns 3 pages of results:
 # &skip_test; goto GUI_TEST3;
+$debug = 0;
 &run_gui_test('khm'.'era', 21, 30, $debug);
 GUI_TEST3:
 # This query returns many pages of results:
 # &skip_test; goto GUI_TEST4;
+$debug = 0;
 &run_gui_test('Jar Jar must die', 31, undef, $debug);
 GUI_TEST4:
 

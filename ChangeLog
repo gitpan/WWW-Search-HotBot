@@ -1,3 +1,7 @@
+2002-02-05  Kingpin  <mthurn@copper.dulles.tasc.com>
+
+	* HotBot.pm (native_setup_search): make the user-agent non-robot
+
 2001-12-17  Kingpin  <mthurn@copper.dulles.tasc.com>
 
 	* test.pl: updated, all tests pass as of today
