@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.56 2000/05/17 14:03:35 mthurn Exp $
+# $Id: HotBot.pm,v 1.56 2000/05/17 14:03:35 mthurn Exp mthurn $
 
 =head1 NAME
 
@@ -25,8 +25,11 @@ F<http://www.hotbot.com>.
 This class exports no public interface; all interaction should
 be done through L<WWW::Search> objects.
 
-WWW::Search::HotBot uses hotbot.com's text-only interface, which can
-be found at http://hotbot.lycos.com/text
+By default, WWW::Search::HotBot uses hotbot.com's text-only interface,
+which can be found at http://hotbot.lycos.com/text .  If you want to
+perform a query with the same default options as if a user typed it in
+the browser window (i.e. at http://www.hotbot.com), call
+$oSearch->gui_query($sQuery) instead of ->native_query().
 
 The default behavior is for HotBot to look for "any of" the query
 terms: 
@@ -40,10 +43,6 @@ If you want "all of", call native_query like this:
 If you want to send HotBot a boolean phrase, call native_query like this:
 
   $oSearch->native_query(escape_query('Oz AND Dorothy NOT Australia'), {'SM' => 'B'});
-
-If you want perform a query with the same default options as if a user
-typed it in the browser window, call $oSearch->gui_query($sQuery)
-instead of ->native_query().
 
 See below for other query-handling options.
 
@@ -296,7 +295,11 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 =head1 VERSION HISTORY
 
-If it''s not listed here, then it wasn''t a meaningful nor released revision.
+If it is not listed here, then it was not a meaningful nor released revision.
+
+=head2 2.17, 2000-05-24
+
+was still missing first URL of non-gui(?) results!
 
 =head2 2.16, 2000-05-17
 
@@ -429,7 +432,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.16';
+$VERSION = '2.17';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -613,7 +616,7 @@ sub native_retrieve_some
       # pattern matches this line (again)!
       }
 
-    if ($state eq $HITS && m|^(?:\074p\076\s?)*\074b\076(\d+)\.|i )
+    if ($state eq $HITS && m|(?:\074p\076\s?)*\074b\076(\d+)\.|i )
       {
       print STDERR "multihit line" if 2 <= $self->{'_debug'};
       # Actual lines of input for gui_query():

@@ -1,3 +1,7 @@
+2000-05-24  Kingpin  <mthurn@tasc.com>
+
+	* HotBot.pm: was missing first URL of native_query results
+
 2000-05-17  Kingpin  <mthurn@tasc.com>
 
 	* VERSION 2.16 RELEASED
