@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.58 2000/06/26 16:09:25 mthurn Exp $
+# $Id: HotBot.pm,v 1.59 2000/10/11 20:29:51 mthurn Exp $
 
 =head1 NAME
 
@@ -297,6 +297,11 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 If it is not listed here, then it was not a meaningful nor released revision.
 
+=head2 2.19, 2000-10-11
+
+added AM1=MC to all URLs in GUI mode (hotbot.com seems to "randomly"
+add this if you search manually at their site)
+
 =head2 2.18, 2000-06-26
 
 fix for only one page of gui results; and "next" link in new place
@@ -436,7 +441,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.18';
+$VERSION = '2.19';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -511,6 +516,7 @@ sub gui_query
                          'MT' => $sQuery,
                          'SQ' => 1,
                          'TR' => 1,
+                         'AM1' => 'MC',
                         };
   return $self->native_query($sQuery, $rh);
   } # gui_query
