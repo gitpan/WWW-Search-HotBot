@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.52 2000/02/08 15:54:23 mthurn Exp $
+# $Id: HotBot.pm,v 1.53 2000/04/03 14:15:06 mthurn Exp $
 
 =head1 NAME
 
@@ -300,6 +300,10 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 If it''s not listed here, then it wasn''t a meaningful nor released revision.
 
+=head2 2.15, 2000-04-03
+
+fixed gui_query()
+
 =head2 2.14, 2000-02-01
 
 testing now uses WWW::Search::Test module
@@ -423,7 +427,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.14';
+$VERSION = '2.15';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -493,13 +497,12 @@ sub native_setup_search
 sub gui_query
   {
   my ($self, $sQuery, $rh) = @_;
-  $rh->{'search_url'} = 'http://hotbot.lycos.com/';
-  $rh->{'BT'} = 'L';
-  $rh->{'DC'} = 10;
-  $rh->{'DE'} = 2;
-  $rh->{'DV'} = 0;
-  $rh->{'LG'} = 'any';
-  $rh->{'SM'} = 'MC';  # HotBot's "must contain" (i.e. AND)
+  $self->{'_options'} = {
+                         'search_url' => 'http://hotbot.lycos.com/',
+                         'MT' => $sQuery,
+                         'SQ' => 1,
+                         'TR' => 1,
+                        };
   return $self->native_query($sQuery, $rh);
   } # gui_query
 
@@ -572,7 +575,7 @@ sub native_retrieve_some
       $state = $NEXT;
       } # we're in HEADER mode, and line has number of results
     # Stay on this line of input!
-    if ($state eq $NEXT && m|http://s.hotbot.com/s.gif|)
+    if ($state eq $NEXT && m|/s.hotbot.com/s.gif|)
       {
       # Actual line of input for gui_query():
       # <img src='http://s.hotbot.com/s.gif' width=1 height=4 alt=''><BR>

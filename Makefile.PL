@@ -5,7 +5,7 @@ WriteMakefile(
               'NAME' => 'WWW::Search::HotBot',
               'VERSION_FROM' => 'HotBot.pm',
               'PREREQ_PM' => {
-                              'WWW::Search' => 2.09,
+                              'WWW::Search' => 2.13,
                              },
 );
 

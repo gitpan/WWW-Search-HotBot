@@ -1,5 +1,7 @@
 2000-02-08  Kingpin  <mthurn@tasc.com>
 
+	* VERSION 2.14 RELEASED!
+
 	* HotBot.pm (native_retrieve_some): BUGFIX when no "next" button during GUI results
 
 2000-02-07  Kingpin  <mthurn@tasc.com>
