@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.59 2000/10/11 20:29:51 mthurn Exp $
+# $Id: HotBot.pm,v 1.60 2000/12/11 14:56:34 mthurn Exp $
 
 =head1 NAME
 
@@ -297,6 +297,10 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 If it is not listed here, then it was not a meaningful nor released revision.
 
+=head2 2.21, 2000-12-11
+
+new URL for advanced search
+
 =head2 2.19, 2000-10-11
 
 added AM1=MC to all URLs in GUI mode (hotbot.com seems to "randomly"
@@ -441,7 +445,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.19';
+$VERSION = '2.21';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -486,7 +490,7 @@ sub native_setup_search
   if (!defined($self->{_options})) 
     {
     $self->{_options} = {
-                         'search_url' => 'http://www.hotbot.com/text/default.asp',
+                         'search_url' => 'http://hotbot.lycos.com/',
                          'DE' => 2,
                          'SM' => 'SC',
                          'DC' => $self->{_hits_per_page},

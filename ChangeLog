@@ -1,3 +1,19 @@
+2000-12-12  Kingpin  <mthurn@tasc.com>
+
+	* VERSION 2.21 RELEASED
+
+2000-12-11  Kingpin  <mthurn@tasc.com>
+
+	* HotBot.pm (native_setup_search): new URL for advanced search
+
+2000-10-12  Kingpin  <mthurn@tasc.com>
+
+	* VERSION 2.19 RELEASED
+
+2000-10-11  Kingpin  <mthurn@tasc.com>
+
+	* HotBot.pm (native_retrieve_some): added AM1=MC to all URLs in GUI mode
+
 2000-06-26  Kingpin  <mthurn@tasc.com>
 
 	* VERSION 2.18 RELEASED
