@@ -1,60 +1,49 @@
-# Before `make install' is performed this script should be runnable with
-# `make test'. After `make install' it should work as `perl test.pl'
 
 use ExtUtils::testlib;
-use WWW::Search::Test qw( new_engine run_gui_test run_test skip_test );
 
-######################### We start with some black magic to print on failure.
+use Test::More no_plan;
 
-# Change 1..1 below to 1..last_test_to_print .
-# (It may become useful if the test is moved to ./t subdirectory.)
+BEGIN { use_ok('WWW::Search') };
+BEGIN { use_ok('WWW::Search::Test', qw( count_results )) };
+BEGIN { use_ok('WWW::Search::HotBot') };
 
-BEGIN { $| = 1; print "1..8\n"; }
-END {print "not ok 1\n" unless $loaded;}
-use WWW::Search::HotBot;
-$loaded = 1;
-print "ok 1\n";
+$WWW::Search::Test::oSearch = new WWW::Search('HotBot');
 
-######################### End of black magic.
+my $iDebug = 0;
+my $iCount;
 
-# Insert your test code below (better if it prints "ok 13"
-# (correspondingly "not ok 13") depending on the success of chunk 13
-# of the test code):
-
-$WWW::Search::Test::iTest = 1;
-
-&new_engine('HotBot');
-
-# goto GUI_TEST;
-# goto MULTI_TEST;
-my $debug = 0;
-
+$iDebug = 0;
 # This test returns no results (but we should not get an HTTP error):
-&run_test($WWW::Search::Test::bogus_query, 0, 0, $debug);
+&my_test('normal', $WWW::Search::Test::bogus_query, 0, 0, $iDebug);
+$iDebug = 0;
 # This query returns 1 page of results:
-&run_test('+LS'.'AM +repl'.'ication +cor'.'e', 1, 99, $debug);
-
-# goto GUI_TEST;
-
-MULTI_TEST:
-# &skip_test; goto GUI_TEST;
-# This query returns MANY pages of results:
-&run_test('"Bo'.'ss Na'.'ss"', 101, undef, $debug);
-
-GUI_TEST:
-
-# This query returns 1 page of results:
-&run_gui_test('Ma'.'rtin AND Thu'.'rn AND Bi'.'ble AND Galo'.'ob', 1, 10, $debug);
-# This query returns 3 pages of results:
-# &skip_test; goto GUI_TEST3;
-$debug = 0;
-&run_gui_test('khm'.'era', 21, 30, $debug);
-GUI_TEST3:
+&my_test('normal', 'trans'.'morgify', 1, 99, $iDebug);
+$iDebug = 0;
 # This query returns many pages of results:
-# &skip_test; goto GUI_TEST4;
-$debug = 0;
-&run_gui_test('Jar Jar must die', 31, undef, $debug);
-GUI_TEST4:
+&my_test('normal', 'Sta'.'r Wa'.'rs', 102, undef, $iDebug);
+
+exit 0;
+
+TODO:
+  {
+  local $TODO = q{find a gui query that returns < 10 hits};
+  $iDebug = 0;
+  # This query returns 1 page of results:
+  &my_test('gui', 'Ma'.'rtin AND Thu'.'rn AND Bi'.'ble AND Galo'.'ob', 1, 10, $iDebug);
+  } # TODO
+
+$iDebug = 0;
+# This query returns many pages of results:
+&my_test('gui', 'Star Wars Collector Bible', 21, undef, $iDebug);
+
+sub my_test
+  {
+  # Same arguments as WWW::Search::Test::count_results()
+  my ($sType, $sQuery, $iMin, $iMax, $iDebug, $iPrintResults) = @_;
+  my $iCount = &count_results(@_);
+  cmp_ok($iCount, '>=', $iMin, qq{lower-bound num-hits for query=$sQuery}) if defined $iMin;
+  cmp_ok($iCount, '<=', $iMax, qq{upper-bound num-hits for query=$sQuery}) if defined $iMax;
+  } # my_test
 
 __END__
 
