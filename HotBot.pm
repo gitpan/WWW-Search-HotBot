@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.63 2001/10/16 20:10:17 mthurn Exp mthurn $
+# $Id: HotBot.pm,v 1.67 2001/12/17 19:52:32 mthurn Exp $
 
 =head1 NAME
 
@@ -297,9 +297,13 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 If it is not listed here, then it was not a meaningful nor released revision.
 
+=head2 2.25, 2001-12-17
+
+FIX for new URL output format with date; delete unused code; get next page of results
+
 =head2 2.24, 2001-10
 
-
+Massive re-write using new website parameters and HTML::TreeBuilder
 
 =head2 2.23, 2001-07-19
 
@@ -453,7 +457,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.24';
+$VERSION = '2.25';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -611,28 +615,25 @@ sub parse_tree
     $oFONT = shift @aoFONT;
     next TD_TAG unless ref $oFONT;
     print STDERR " +   URL is in ===", $oFONT->as_HTML, "===\n" if 2 <= $self->{_debug};
+    my $oI = $oFONT->look_down('_tag', 'i');
+    my $sDate = '';
+    if (ref $oI)
+      {
+      $sDate = $oI->as_text;
+      $oI->detach;
+      $oI->delete;
+      } # if
     my $sURL = $oFONT->as_text;
     my $hit = new WWW::SearchResult;
     $hit->add_url($sURL);
     $hit->title($sTitle);
     $hit->description(&WWW::Search::strip_tags($sDesc));
+    $hit->change_date($sDate);
     push(@{$self->{cache}}, $hit);
     $self->{'_num_hits'}++;
     $hits_found++;
     } # foreach $oB
   my @aoA = $oTree->look_down('_tag', 'a');
-
-=head2 IMPORTANT NOTICE
-
-As of 2001-10-25, www.hotbot.com is broken as follows:
-When you click the "next" link on the results page,
-it returns the same set of results all over again.
-Therefore, this release of WWW::Search::HotBot can only retrieve the first 100 hits.
-
-=cut
-
-  goto SKIP_NEXT_LINK;
-
   # Find the next link, if any:
  A_TAG:
   foreach my $oA (@aoA)
@@ -649,188 +650,6 @@ Therefore, this release of WWW::Search::HotBot can only retrieve the first 100 h
 
   return $hits_found;
   } # parse_tree
-
-# private
-sub native_retrieve_some_old
-  {
-  my ($self) = @_;
-
-  # Fast exit if already done:
-  return undef unless defined($self->{_next_url});
-
-  # If this is not the first page of results, sleep so as to not overload the server:
-  $self->user_agent_delay if 1 < $self->{'_next_to_retrieve'};
-
-  # print STDERR " * search_from_file is set!\n" if $self->{search_from_file};
-  # print STDERR " * search_to_file is set!\n" if $self->{search_to_file};
-  # Get some results
-  print STDERR "\n *   sending request (",$self->{_next_url},")" if $self->{'_debug'};
-  my($response) = $self->http_request('GET', $self->{_next_url});
-  $self->{response} = $response;
-  if (!$response->is_success)
-    {
-    return undef;
-    } # if
-
-  print STDERR "\n *   got response" if $self->{'_debug'};
-  $self->{'_next_url'} = undef;
-  # Parse the output
-  my ($TITLE, $HEADER,
-      $HITS, $HIT1, $HIT2, $HIT3, $HIT4, $HIT5,
-      $NEXT, $TRAILER) = qw( TI HE HH H1 H2 H3 H4 H5 NX TR );
-  my $hits_found = 0;
-  my $state = $HEADER;
-  my $hit;
-  my $sHitPattern = quotemeta '<font face="verdana&#44;arial&#44;helvetica" size="2">';
-  my $WHITESPACE = '(?:\s|&nbsp;|<BR>)';
- LINE_OF_INPUT:
-  foreach ($self->split_lines($response->content()))
-    {
-    s/\r$//;  # delete DOS carriage-return
-    next if m/^\r?$/; # short circuit for blank lines
-    print STDERR "\n * $state ===$_===" if 2 <= $self->{'_debug'};
-
-    # \074 is <
-    # \076 is >
-    if ($state eq $TITLE &&
-        m@\074title\076HotBot results@i)
-      {
-      # Actual lines of input are:
-      # <HEAD><TITLE>HotBot results: Christie Abbott (1+)</TITLE>
-      # <title>HotBot results: Martin Thurn</title>
-      print STDERR "title line" if 2 <= $self->{'_debug'};
-      $state = $HEADER;
-      } # We're in TITLE mode, and line has title
-
-    elsif ($state eq $HEADER &&
-           m!Sorry, your search yielded no results\.!)
-      {
-      $self->approximate_result_count(0);
-      return 0;
-      }
-    elsif ($state eq $HEADER &&
-           m!(?:Returned:|WEB${WHITESPACE}RESULTS$WHITESPACE+</B></FONT>)[^<]*(?:$WHITESPACE|fewer|less|more|than)*([\d,]+)$WHITESPACE+(?:Matches|Results)?!io)
-      {
-      # Actual line of input is:
-      # <b>Returned:&nbsp;69&nbsp;Matches&nbsp;
-      # <b>Returned:&nbsp;&nbsp;more&nbsp;than&nbsp;500,000&nbsp;&nbsp;
-      # <b>Returned:&nbsp;&nbsp;fewer&nbsp;than&nbsp;100&nbsp;&nbsp;<br>Results&nbsp;for&nbsp;&quot;+LSAM +replication&quot;</b><br><br>
-      # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;2&nbsp;</b> <BR>
-      # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;10&nbsp;</b> <a href="/?MT=Martin+Thurn&II=8&OSI=2&RPN=2&SQ=1&TR=351&BT=L">next</a>&nbsp;<font face="Arial,Helvetica,sans-serif" size=3><b>&gt;&gt;</b></font><BR>
-      # <P><FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;25,345,456&nbsp;matches&nbsp;&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;7&nbsp;</b> <P><b>1.&nbsp;<a href=/director.asp?target=http%3A%2F%2Fwww%2Epitt%2Eedu%2F%7Ethurn%2FSWB%2Fpizzahut%2Ehtml&id=1&userid=5c1bcdpuEawS&query=MT=Martin AND Thurn AND Bible AND Galoob&rsource=INK>The Star Wars Collector's Bible (Pizza Hut)</a></b><br>The Star Wars Collector's Bible Search SWB for: Pizza Hut a child company of Pepsico, Inc. 1997 promotions promotional goods plastic tumbler showing Vader & Luke on gantry (comes with red lid) ANH poster ESB poster ROJ poster in-store decorations 6.<br><font size=1><i>7/27/1999</i>  http://www.pitt.edu/~thurn/SWB/pizzahut.html<BR>See results from <a href="/?MT=Martin+AND+Thurn+AND+Bible+AND+Galoob&SQ=1&TR=7&RD=DM&Domain=www%2Epitt%2Eedu">this site only</a>.</font></p>
-      my $iCount = $1 || '0';
-      $iCount =~ s/\D//g;
-      print STDERR "count line ($iCount) " if 2 <= $self->{'_debug'};
-      $self->approximate_result_count($iCount);
-      $state = $NEXT;
-      } # we're in HEADER mode, and line has number of results
-    # Stay on this line of input!
-
-    if (($state eq $NEXT) && 
-        (
-         m|/s.hotbot.com/s.gif|
-         ||
-         m!<P><b>\d+.&nbsp;<a!))
-      {
-      # Actual line of input for gui_query():
-      # <img src='http://s.hotbot.com/s.gif' width=1 height=4 alt=''><BR>
-      print STDERR " NO next button (gui mode)" if 2 <= $self->{'_debug'};
-      $state = $HITS;
-      }
-    # Stay on this line of input!
-
-    if ((($state eq $NEXT) || ($state eq $HITS))
-        && m|href="[^"?]+\?([^\"]*?)">next</a>|)
-      {
-      # Actual line of input for gui_query():
-      # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;10&nbsp;</b> <a href="/?MT=Martin+Thurn&II=8&OSI=2&RPN=2&SQ=1&TR=351&BT=L">next</a>&nbsp;<font face="Arial,Helvetica,sans-serif" size=3><b>&gt;&gt;</b></font><BR>
-      # Actual line of input:
-      #  <b>1&nbsp;-&nbsp;100&nbsp;</b> <a href="/text/default.asp?MT=Calrissian&SM=SC&II=100&RPN=2&DC=100&BT=T">next</a><font color="#FF0000" face="courier" size=1>&nbsp;<b>&gt;&gt;</b></font><br>
-      print STDERR " found next button" if 2 <= $self->{'_debug'};
-      # There is a "next" button on this page, therefore there are
-      # indeed more results for us to go after next time.
-      $self->{_next_url} = $self->{'_options'}{'search_url'} .'?'. $1;
-      print STDERR "\n + next_url is >>>", $self->{_next_url}, "<<<" if $self->{_debug};
-      $self->{'_next_to_retrieve'} += $self->{'_hits_per_page'};
-      $state = $HITS;
-      } # found "next" link in NEXT mode
-    elsif ($state eq $NEXT && (
-                               m|^(?:\074p\076\s)?\074b\076(\d+)\.|   ||
-                               m/<!-- BRES -->/
-                              ))
-      {
-      print STDERR " no next button; " if 2 <= $self->{'_debug'};
-      # There was no "next" button on this page; no more pages to get!
-      $self->{'_next_url'} = undef;
-      $state = $HITS;
-      # Fall through (i.e. don't say "elsif") so that the $HITS
-      # pattern matches this line (again)!
-      }
-
-    if ($state eq $HITS && m|(?:\074p\076\s?)*\074b\076(\d+)\.|i )
-      {
-      print STDERR "multihit line" if 2 <= $self->{'_debug'};
-      # Actual lines of input for gui_query():
-      # <p><B>1.&nbsp;<a href=http://www.pitt.edu/~thurn/SWC>Star Wars Collector Magazine</B></A><BR>Martin Thurn's fine print fanzine about all areas of Star Wars collecting. News and rumors.<br><FONT SIZE=1>http://www.pitt.edu/~thurn/SWC</FONT><BR><FONT SIZE=1>More like this: <A HREF="http://directory.hotbot.com/Arts/Movies/Series/Star_Wars/Magazines_and_Ezines/&MT=Martin+Thurn&RPN=1&SQ=1&TR=351&BT=L">Arts/ Movies/ Series/ Star Wars/ Magazines and Ezines</A></FONT><p><P>
-      # <B>2.&nbsp;<a href=http://www.pitt.edu:80/~thurn/SWB>The Star Wars Collector's Bible</B></A><BR>by Martin Thurn.  A comprehensive and searchable database for info on all manner of SW collectibles.<br><FONT SIZE=1>http://www.pitt.edu:80/~thurn/SWB</FONT><BR><FONT SIZE=1>More like this: <A HREF="http://directory.hotbot.com/Arts/Movies/Series/Star_Wars/Toys_and_Collectibles/&MT=Martin+Thurn&RPN=1&SQ=1&TR=351&BT=L">Arts/ Movies/ Series/ Star Wars/ Toys and Collectibles</A></FONT><p><P>
-      # Actual line of input as of 2000-01-17:
-      #  <b>1.&nbsp;<a href=/director.asp?target=http%3A%2F%2Fwww%2Edse%2Eit%2Fnw%2Forte%2Finfo%2Fstmte%2Ehtm&id=1&userid=4QYCgJzifDAn&query=MT=Martin+Thurn&SM=SC&RPN=1&TR=339&DC=100&BT=T&rsource=INK>St. Martin in Thurn</a></b><br>St. Martin in Thurn Hotels Additional data coming soon Weitere Daten sind in Bearbeitung Dati ancora in elaborazione<br><font size=1><i>2/21/96</i>  http://www.dse.it/nw/orte/info/stmte.htm<BR>See results from <a href="/?MT=Martin+Thurn&SM=SC&TR=339&DC=100&RD=DM&Domain=www%2Edse%2Eit&BT=T">this site only</a>.</font><p>
-      # Actual line of input as of 1999-10-18:
-      # <p> <b>10.&nbsp;&nbsp;<a href=/director.asp?target=http%3A%2F%2Fwww%2E5ss%2Ecom%2Fswafw%2Finfo%2Ffaq%2Ehtml&id=10&userid=4owy5fprDDg/&query=MT=%22Martin+Thurn%22&SM=SC&DC=100&BT=T&rsource=INK>http://www.5ss.com/swafw/info/faq.html</A></b><br>REC.ARTS.SF.STARWARS.COLLECTING FAQ Last updated 4-22-97 ** Coordinators: Paul Levesque (paulleve@map.com) Gus Lopez (lopez@cs.washington.edu) Chris Nichols (anichols@bucknell.edu) Authors: Dave Halsted (def@leland.stanford.edu) Gus Lopez  (lopez..<br><font size=1><b>85%&nbsp&nbsp</b><i>8/27/97</i>  http://www.5ss.com/swafw/info/faq.html<BR>See results from <a href="/?MT=%22Martin+Thurn%22&SM=SC&DC=100&RD=DM&Domain=www%2E5ss%2Ecom&BT=T">this site only</a>.</font>
-      # Here is what it looks like if DE=1 (brief description):
-      # <p> <b>1. <a href=/director.asp?target=http%3A%2F%2Fwww%2Epitt%2Eedu%2F%7Ethurn&id=1&userid=3gr+hc5jrHwm&query=MT=Martin+Thurn&SM=SC&DE=1&DC=100&rsource=INK>Martin Thurn's Index Page</A></b><br>Martin Thurn Why am I so busy? I am gainfully employed at TASC. I have a family including 3 beautiful children. I am a co-habitant with two immaculate cats. I am the editor of The Star Wars Collector, a bimonthly newsletter by Star Wars  collectors.<font size=1><br><b>99%&nbsp&nbsp</b></font><p> <b>2. <a href=/director.asp?target=http%3A%2F%2Fwww%2Eposta%2Esuedtirol%2Ecom%2F&id=2&userid=3gr+hc5jrHwm&query=MT=Martin+Thurn&SM=SC&DE=1&DC=100&rsource=INK>**Gasthof Post St. Martin in Thurn Val Badia Sudtirol Alto Adige Southtyrol Suedtirol</A></b><br>Urlaub im Gasthof Post in Pikolein in St. Martin in Thurn in Val Badia in  Sudtiro<font size=1><br><b>98%&nbsp&nbsp</b></font><p> <b>3. ...
-      my @asHits = split /\074[pP]\076/;
-      foreach my $sHit (@asHits)
-        {
-        print STDERR "\n +   === split portion ===$sHit===" if 2 <= $self->{'_debug'};
-        # <B>1.&nbsp;<a href=http://www.pitt.edu/~thurn/SWC>Star Wars Collector Magazine</B></A><BR>Martin Thurn's fine print fanzine about all areas of Star Wars collecting. News and rumors.<br><FONT SIZE=1>http://www.pitt.edu/~thurn/SWC</FONT><BR><FONT SIZE=1>More like this: <A HREF="http://directory.hotbot.com/Arts/Movies/Series/Star_Wars/Magazines_and_Ezines/&MT=Martin+Thurn&RPN=1&SQ=1&TR=351&BT=L">Arts/ Movies/ Series/ Star Wars/ Magazines and Ezines</A></FONT>
-        #  <b>6.&nbsp;<a href=/director.asp?target=http%3A%2F%2Fwww%2Etoysrgus%2Ecom%2Ftextfiles%2Ehtml&id=6&userid=4UJSAKzjVHAE&query=MT=Martin+Thurn&RPN=1&SQ=1&TR=392&BT=L&rsource=INK>Charts, Tables, and Text Files</a></b><br>Text Files Maintained by Gus Lopez (lopez@halcyon.com) Ever wonder which weapon goes with which figure? Well, that's the kind of information you can find right here. Any beginning collector should glance at some of these files since they answer...<br><font size=1><i>11/7/98</i>  http://www.toysrgus.com/textfiles.html<BR>See results from <a href="/?MT=Martin+Thurn&SQ=1&TR=392&RD=DM&Domain=www%2Etoysrgus%2Ecom&BT=L">this site only</a>.</font>
-        my ($iHit,$iPercent,$iBytes,$sURL,$sTitle,$sDesc,$sDate) = (0,0,0,'','','','');
-        # m/<b>(\d+)\.$WHITESPACE/ && $iHit = $1;
-        $sURL = $1 if $sHit =~ m!<B>(?:\d+).&nbsp;<a href=\"?(.+?)\"?>!i;
-        $sURL ||= $1 if $sHit =~ m/uHost=(.+)\"/;
-        # Following line corrected 1999-11-11 to ignore domain-limited link (by Leon Brocard)
-        $sURL ||= $1 if $sHit =~ m!\074/i\076\s*(.+?)\074!;
-        # Following line added 1999-08-17 to recognize brief-description results (DE=1):
-        $sURL = $1 if $sHit =~ m!director.asp\?target=(.+?)\&!i;
-        $sTitle = &strip_tags($1) if $sHit =~ m=\076([^\074]+)\074/a\076=i;
-        $sDate = $1 if $sHit =~ m!\074i\076(\d\d?\/\d\d?\/\d\d)\074/i\076!i;
-        $sDesc = &strip_tags($1) if $sHit =~ m/\074br\076([^\074]+)\074(br|font)/i;
-        $iPercent = $1 if $sHit =~ m/\076(\d+)\%(&nbsp|\074)/i;
-        $iBytes = $1 if $sHit =~ m/&nbsp;\s(\d+)\sbytes/i;
-        # Note that we ignore MIRROR URLs, so our total hit count may
-        # get all out of whack.
-        if ($sURL ne '')
-          {
-          if (ref($hit))
-            {
-            push(@{$self->{cache}}, $hit);
-            } # if
-          $hit = new WWW::SearchResult;
-          # As of 1999-06-20: www.hotbot.pm escapes the URL on this line of output:
-          print STDERR " +   raw       URL is $sURL...\n" if 5 <= $self->{'_debug'};
-          $hit->add_url(uri_unescape($sURL));
-          print STDERR " +   unescaped URL is $sURL...\n" if 5 <= $self->{'_debug'};
-          $hit->title($sTitle) if $sTitle ne '';
-          $hit->description($sDesc) if $sDesc ne '';
-          $hit->score($iPercent) if 0 < $iPercent;
-          $hit->size($iBytes) if 0 < $iBytes;
-          $hit->change_date($sDate) if $sDate ne '';
-          $self->{'_num_hits'}++;
-          $hits_found++;
-          } # if $URL else
-        } # foreach
-      $state = $HITS;
-      } # $state eq HITS
-
-    } # foreach line of query results HTML page
-
-  if (defined($hit))
-    {
-    push(@{$self->{cache}}, $hit);
-    }
-  return $hits_found;
-  } # native_retrieve_some
 
 1;
 

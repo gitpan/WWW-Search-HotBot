@@ -1,3 +1,15 @@
+2001-12-17  Kingpin  <mthurn@copper.dulles.tasc.com>
+
+	* test.pl: updated, all tests pass as of today
+
+	* HotBot.pm (parse_tree): FIX for new URL output format with date;
+	delete unused code;
+	get next page of results
+
+2001-10  Kingpin  <mthurn@copper.dulles.tasc.com>
+
+	* HotBot.pm: Massive re-write using new website parameters and HTML::TreeBuilder
+
 2001-07-19  Kingpin  <mthurn@tasc.com>
 
 	* HotBot.pm (native_setup_search): set agent_name to something that works

@@ -37,21 +37,21 @@ my $debug = 0;
 # goto GUI_TEST;
 
 MULTI_TEST:
-&skip_test; goto GUI_TEST;
+# &skip_test; goto GUI_TEST;
 # This query returns MANY pages of results:
 &run_test('"Bo'.'ss Na'.'ss"', 101, undef, $debug);
 
 GUI_TEST:
 
 # This query returns 1 page of results:
-&run_gui_test('Ma'.'rtin AND Thu'.'rn AND Bi'.'ble AND Galo'.'ob', undef, 10, $debug);
+&run_gui_test('Ma'.'rtin AND Thu'.'rn AND Bi'.'ble AND Galo'.'ob', 1, 10, $debug);
 # This query returns 3 pages of results:
-&skip_test; goto GUI_TEST3;
-&run_gui_test('ctil'.'etou', 31, 40, $debug);
+# &skip_test; goto GUI_TEST3;
+&run_gui_test('khm'.'era', 21, 30, $debug);
 GUI_TEST3:
 # This query returns many pages of results:
-&skip_test; goto GUI_TEST4;
-&run_gui_test('Jar Jar must die', 31, 40, $debug);
+# &skip_test; goto GUI_TEST4;
+&run_gui_test('Jar Jar must die', 31, undef, $debug);
 GUI_TEST4:
 
 __END__
