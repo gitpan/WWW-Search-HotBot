@@ -1,3 +1,12 @@
+2001-07-19  Kingpin  <mthurn@tasc.com>
+
+	* HotBot.pm (native_setup_search): set agent_name to something that works
+	(native_retrieve_some): tweak pattern for result-count
+
+2001-07-06  Kingpin  <mthurn@tasc.com>
+
+	* HotBot.pm (native_retrieve_some): fix result-count parsing; quicker short-circuit when 0 results
+
 2000-12-12  Kingpin  <mthurn@tasc.com>
 
 	* VERSION 2.21 RELEASED

@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.60 2000/12/11 14:56:34 mthurn Exp $
+# $Id: HotBot.pm,v 1.63 2001/10/16 20:10:17 mthurn Exp mthurn $
 
 =head1 NAME
 
@@ -25,14 +25,14 @@ F<http://www.hotbot.com>.
 This class exports no public interface; all interaction should
 be done through L<WWW::Search> objects.
 
-By default, WWW::Search::HotBot uses hotbot.com's text-only interface,
-which can be found at http://hotbot.lycos.com/text .  If you want to
-perform a query with the same default options as if a user typed it in
-the browser window (i.e. at http://www.hotbot.com), call
-$oSearch->gui_query($sQuery) instead of ->native_query().
+By default, WWW::Search::HotBot uses hotbot.com's "advanced search"
+interface.  If you want to perform a query with the same default
+options as if a user typed it in the browser window (i.e. at
+http://www.hotbot.com), call $oSearch->gui_query($sQuery) instead of
+->native_query().
 
 The default behavior is for HotBot to look for "any of" the query
-terms: 
+terms:
 
   $oSearch->native_query(escape_query('Dorothy Oz'));
 
@@ -297,6 +297,14 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 If it is not listed here, then it was not a meaningful nor released revision.
 
+=head2 2.24, 2001-10
+
+
+
+=head2 2.23, 2001-07-19
+
+Tweak pattern for result-count; set agent_name to something that works
+
 =head2 2.21, 2000-12-11
 
 new URL for advanced search
@@ -432,7 +440,7 @@ simply deleted before the query is sent to www.hotbot.com.
 
 =head2 1.11, 1998-02-05
 
-Fixed and revamped by Martin Thurn.  
+Fixed and revamped by Martin Thurn.
 
 =cut
 
@@ -445,13 +453,15 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.21';
+$VERSION = '2.24';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
 use WWW::Search qw( generic_option strip_tags );
 use WWW::SearchResult;
 use URI::Escape;
+
+use strict;
 
 # private
 sub native_setup_search
@@ -470,10 +480,11 @@ sub native_setup_search
   $self->{'_hits_per_page'} = $DEFAULT_HITS_PER_PAGE;
   # $self->timeout(120);  # HotBot used to be notoriously slow
 
-  # As of 1998-05, HotBot apparently doesn't like WWW::Search!  When
-  # using user_agent(0), response was "RC: 403 (Forbidden) Message:
-  # Forbidden by robots.txt"
-  $self->user_agent(1);
+  $self->user_agent(0);
+  # hotbot.pm seems to send a DIFFERENT page format if the client is
+  # MSIE.  So, make sure they DON'T think we're MSIE!  Added by Martin
+  # Thurn 2001-07-19.
+  $self->{'agent_name'} = 'Mozilla/4.76';
 
   $self->{_next_to_retrieve} = 0;
   $self->{'_num_hits'} = 0;
@@ -487,21 +498,44 @@ sub native_setup_search
   $native_query =~ s/(\w)\052$/$1\040/g;
   $native_query =~ s/(\w)\0452A\053/$1\053/g;
   $native_query =~ s/(\w)\0452A$/$1/g;
-  if (!defined($self->{_options})) 
+  if (!defined($self->{_options}))
     {
     $self->{_options} = {
                          'search_url' => 'http://hotbot.lycos.com/',
-                         'DE' => 2,
-                         'SM' => 'SC',
-                         'DC' => $self->{_hits_per_page},
-                         'MT' => $native_query,
+                         'matchmode' => 'any',
+                         'query' => $native_query,
+                         'recordcount' => $self->{_hits_per_page},
+                         'descriptiontype' => 2,
+                         'modsign0' => 'must',
+                         'modtype0' => 'words',
+                         'modwords0' => '',
+                         'modsign1' => 'must',
+                         'modtype1' => 'words',
+                         'modwords1' => '',
+                         'dateoption' => 'within',
+                         'datedelta' => 0,
+                         'daterelation' => 'newer',
+                         'datemonth' => 1,
+                         'DD' => 1,
+                         dateyear => 2000,
+                         language => 'any',
+                         extension => '',
+                         domain => '',
+                         placeselection => 'georegion',
+                         georegion => 'all',
+                         sitegroup => 1,
+                         pagetype => 'A',
+                         PD => '',
+                         'act.query' => 1,
+                         search => 'SEARCH',
+                         NUMMOD => 2,
                         };
     } # if
   my $options_ref = $self->{_options};
-  if (defined($native_options_ref)) 
+  if (defined($native_options_ref))
     {
     # Copy in new options.
-    foreach (keys %$native_options_ref) 
+    foreach (keys %$native_options_ref)
       {
       $options_ref->{$_} = $native_options_ref->{$_};
       } # foreach
@@ -526,24 +560,114 @@ sub gui_query
   } # gui_query
 
 
+sub parse_tree
+  {
+  my $self = shift;
+  my $oTree = shift;
+  my $hits_found = 0;
+  my @aoFONT = $oTree->look_down('_tag', 'font');
+ FONT_TAG:
+  foreach my $oBQ (@aoFONT)
+    {
+    if (ref $oBQ)
+      {
+      my $sBQ = $oBQ->as_text;
+      print STDERR " +   BQ == $sBQ\n" if 2 <= $self->{_debug};
+      if ($sBQ =~ m!(?:\A|\s)([0-9,]+)\s+Matches!i)
+        {
+        my $sCount = $1;
+        # print STDERR " +     raw    count == $sCount\n" if 2 <= $self->{_debug};
+        $sCount =~ s!,!!g;
+        # print STDERR " +     cooked count == $sCount\n" if 2 <= $self->{_debug};
+        $self->approximate_result_count($sCount);
+        last FONT_TAG;
+        } # if
+      } # if
+    } # foreach
+  my @aoTD = $oTree->look_down('_tag', 'td');
+ TD_TAG:
+  foreach my $oTD (@aoTD)
+    {
+    next TD_TAG unless ref $oTD;
+    print STDERR " +   try oTD ===", $oTD->as_text, "===\n" if 2 <= $self->{_debug};
+    # See if this is the number of a result:
+    next TD_TAG unless $oTD->as_text =~ m!\A\s*\d+\.(\s|\240|&nbsp;)*\Z!;
+    my $oTDtitle = $oTD->right;
+    # print STDERR " +   oTDtitle is ===$oTDtitle===\n" if 2 <= $self->{_debug};
+    next TD_TAG unless ref $oTDtitle;
+    my $sTitle = $oTDtitle->as_text;
+    print STDERR " +   found title ===$sTitle===\n" if 2 <= $self->{_debug};
+    my $oTRmom = $oTD->parent;
+    next TD_TAG unless ref $oTRmom;
+    # print STDERR " +   TRmom is ===", $oTRmom->as_HTML, "===\n" if 2 <= $self->{_debug};
+    my $oTRrest = $oTRmom->right;
+    next TD_TAG unless ref $oTRrest;
+    print STDERR " +   TRrest is ===", $oTRrest->as_HTML, "===\n" if 2 <= $self->{_debug};
+    my @aoFONT = $oTRrest->look_down('_tag', 'font');
+    my $oFONT = shift @aoFONT;
+    next TD_TAG unless ref $oFONT;
+    print STDERR " +   description is in ===", $oFONT->as_HTML, "===\n" if 2 <= $self->{_debug};
+    my $sDesc = $oFONT->as_text;
+    $oFONT = shift @aoFONT;
+    next TD_TAG unless ref $oFONT;
+    print STDERR " +   URL is in ===", $oFONT->as_HTML, "===\n" if 2 <= $self->{_debug};
+    my $sURL = $oFONT->as_text;
+    my $hit = new WWW::SearchResult;
+    $hit->add_url($sURL);
+    $hit->title($sTitle);
+    $hit->description(&WWW::Search::strip_tags($sDesc));
+    push(@{$self->{cache}}, $hit);
+    $self->{'_num_hits'}++;
+    $hits_found++;
+    } # foreach $oB
+  my @aoA = $oTree->look_down('_tag', 'a');
+
+=head2 IMPORTANT NOTICE
+
+As of 2001-10-25, www.hotbot.com is broken as follows:
+When you click the "next" link on the results page,
+it returns the same set of results all over again.
+Therefore, this release of WWW::Search::HotBot can only retrieve the first 100 hits.
+
+=cut
+
+  goto SKIP_NEXT_LINK;
+
+  # Find the next link, if any:
+ A_TAG:
+  foreach my $oA (@aoA)
+    {
+    next unless ref $oA;
+    if ($oA->as_text eq 'next')
+      {
+      $self->{_next_url} = $HTTP::URI_CLASS->new_abs($oA->attr('href'), $self->{'_prev_url'});
+      last A_TAG;
+      } # if
+    } # foreach
+
+ SKIP_NEXT_LINK:
+
+  return $hits_found;
+  } # parse_tree
+
 # private
-sub native_retrieve_some
+sub native_retrieve_some_old
   {
   my ($self) = @_;
-  
+
   # Fast exit if already done:
   return undef unless defined($self->{_next_url});
-  
+
   # If this is not the first page of results, sleep so as to not overload the server:
   $self->user_agent_delay if 1 < $self->{'_next_to_retrieve'};
-  
+
   # print STDERR " * search_from_file is set!\n" if $self->{search_from_file};
   # print STDERR " * search_to_file is set!\n" if $self->{search_to_file};
   # Get some results
   print STDERR "\n *   sending request (",$self->{_next_url},")" if $self->{'_debug'};
   my($response) = $self->http_request('GET', $self->{_next_url});
   $self->{response} = $response;
-  if (!$response->is_success) 
+  if (!$response->is_success)
     {
     return undef;
     } # if
@@ -551,14 +675,14 @@ sub native_retrieve_some
   print STDERR "\n *   got response" if $self->{'_debug'};
   $self->{'_next_url'} = undef;
   # Parse the output
-  my ($TITLE, $HEADER, 
+  my ($TITLE, $HEADER,
       $HITS, $HIT1, $HIT2, $HIT3, $HIT4, $HIT5,
-      $NEXT, $TRAILER) = qw(TI HE HH H1 H2 H3 H4 H5 NX TR);
-  my ($hits_found) = 0;
-  my ($state) = ($TITLE);
-  my ($hit) = ();
+      $NEXT, $TRAILER) = qw( TI HE HH H1 H2 H3 H4 H5 NX TR );
+  my $hits_found = 0;
+  my $state = $HEADER;
+  my $hit;
   my $sHitPattern = quotemeta '<font face="verdana&#44;arial&#44;helvetica" size="2">';
-  my $WHITESPACE = '(\s|&nbsp;|<BR>)';
+  my $WHITESPACE = '(?:\s|&nbsp;|<BR>)';
  LINE_OF_INPUT:
   foreach ($self->split_lines($response->content()))
     {
@@ -568,8 +692,8 @@ sub native_retrieve_some
 
     # \074 is <
     # \076 is >
-    if ($state eq $TITLE && 
-        m@\074title\076HotBot results@i) 
+    if ($state eq $TITLE &&
+        m@\074title\076HotBot results@i)
       {
       # Actual lines of input are:
       # <HEAD><TITLE>HotBot results: Christie Abbott (1+)</TITLE>
@@ -578,8 +702,14 @@ sub native_retrieve_some
       $state = $HEADER;
       } # We're in TITLE mode, and line has title
 
-    elsif ($state eq $HEADER && 
-           m!(?:Returned:|WEB${WHITESPACE}RESULTS$WHITESPACE+</B></FONT>)[^<]*?(?:$WHITESPACE|fewer|less|more|than)+([\d,]+)$WHITESPACE+(?:Matches|Results)?!i)
+    elsif ($state eq $HEADER &&
+           m!Sorry, your search yielded no results\.!)
+      {
+      $self->approximate_result_count(0);
+      return 0;
+      }
+    elsif ($state eq $HEADER &&
+           m!(?:Returned:|WEB${WHITESPACE}RESULTS$WHITESPACE+</B></FONT>)[^<]*(?:$WHITESPACE|fewer|less|more|than)*([\d,]+)$WHITESPACE+(?:Matches|Results)?!io)
       {
       # Actual line of input is:
       # <b>Returned:&nbsp;69&nbsp;Matches&nbsp;
@@ -587,7 +717,7 @@ sub native_retrieve_some
       # <b>Returned:&nbsp;&nbsp;fewer&nbsp;than&nbsp;100&nbsp;&nbsp;<br>Results&nbsp;for&nbsp;&quot;+LSAM +replication&quot;</b><br><br>
       # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;2&nbsp;</b> <BR>
       # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;10&nbsp;</b> <a href="/?MT=Martin+Thurn&II=8&OSI=2&RPN=2&SQ=1&TR=351&BT=L">next</a>&nbsp;<font face="Arial,Helvetica,sans-serif" size=3><b>&gt;&gt;</b></font><BR>
-      # <P><FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;7&nbsp;matches&nbsp;&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;7&nbsp;</b> <P><b>1.&nbsp;<a href=/director.asp?target=http%3A%2F%2Fwww%2Epitt%2Eedu%2F%7Ethurn%2FSWB%2Fpizzahut%2Ehtml&id=1&userid=5c1bcdpuEawS&query=MT=Martin AND Thurn AND Bible AND Galoob&rsource=INK>The Star Wars Collector's Bible (Pizza Hut)</a></b><br>The Star Wars Collector's Bible Search SWB for: Pizza Hut a child company of Pepsico, Inc. 1997 promotions promotional goods plastic tumbler showing Vader & Luke on gantry (comes with red lid) ANH poster ESB poster ROJ poster in-store decorations 6.<br><font size=1><i>7/27/1999</i>  http://www.pitt.edu/~thurn/SWB/pizzahut.html<BR>See results from <a href="/?MT=Martin+AND+Thurn+AND+Bible+AND+Galoob&SQ=1&TR=7&RD=DM&Domain=www%2Epitt%2Eedu">this site only</a>.</font></p>
+      # <P><FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;25,345,456&nbsp;matches&nbsp;&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;7&nbsp;</b> <P><b>1.&nbsp;<a href=/director.asp?target=http%3A%2F%2Fwww%2Epitt%2Eedu%2F%7Ethurn%2FSWB%2Fpizzahut%2Ehtml&id=1&userid=5c1bcdpuEawS&query=MT=Martin AND Thurn AND Bible AND Galoob&rsource=INK>The Star Wars Collector's Bible (Pizza Hut)</a></b><br>The Star Wars Collector's Bible Search SWB for: Pizza Hut a child company of Pepsico, Inc. 1997 promotions promotional goods plastic tumbler showing Vader & Luke on gantry (comes with red lid) ANH poster ESB poster ROJ poster in-store decorations 6.<br><font size=1><i>7/27/1999</i>  http://www.pitt.edu/~thurn/SWB/pizzahut.html<BR>See results from <a href="/?MT=Martin+AND+Thurn+AND+Bible+AND+Galoob&SQ=1&TR=7&RD=DM&Domain=www%2Epitt%2Eedu">this site only</a>.</font></p>
       my $iCount = $1 || '0';
       $iCount =~ s/\D//g;
       print STDERR "count line ($iCount) " if 2 <= $self->{'_debug'};
@@ -695,17 +825,26 @@ sub native_retrieve_some
 
     } # foreach line of query results HTML page
 
-  if (defined($hit)) 
+  if (defined($hit))
     {
     push(@{$self->{cache}}, $hit);
     }
-  
   return $hits_found;
   } # native_retrieve_some
 
 1;
 
 __END__
+
+2000-10 text-only advanced search results:
+
+http://hotbot.lycos.com/text/default.asp?matchmode=any&query=Martin+Thurn&recordcount=100&descriptiontype=2&modsign0=must&modtype0=words&modwords0=&modsign1=must&modtype1=words&modwords1=&dateoption=within&datedelta=0&daterelation=newer&datemonth=1&DD=1&dateyear=2000&language=any&extension=&domain=&placeselection=georegion&georegion=all&sitegroup=1&pagetype=A&PD=&act.query=1&search=SEARCH&NUMMOD=2
+
+http://hotbot.lycos.com/text/default.asp?DD=1&NUMMOD=2&PD=&act.query=1&datedelta=0&datemonth=1&dateoption=within&daterelation=newer&dateyear=2000&descriptiontype=2&domain=&extension=&georegion=all&language=any&matchmode=any&modsign0=must&modsign1=must&modtype0=words&modtype1=words&modwords0=&modwords1=&pagetype=A&placeselection=georegion&query=Martin+Thurn&recordcount=100&search=SEARCH&sitegroup=1
+
+2000-10 graphics-version advanced search results:
+
+http://hotbot.lycos.com/?query=martin+thurn&cobrand=&act.query=1&matchmode=any&language=any&modsign0=must&modtype0=words&modwords0=&modsign1=must&modtype1=words&modwords1=&NUMMOD=2&dateoption=within&datedelta=0&daterelation=newer&datemonth=1&DD=1&dateyear=2000&extension=&placeselection=georegion&georegion=all&domain=&pagetype=A&PD=&recordcount=10&descriptiontype=2&SUBMIT=SEARCH
 
 Martin''s page download results, 1998-02:
 
@@ -780,5 +919,4 @@ SM = (selection) search type
      title = the page title
      name = the person
      url = links to this URL
-     B = Boolean phrase     
-
+     B = Boolean phrase
