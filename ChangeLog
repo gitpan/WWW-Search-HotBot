@@ -1,3 +1,13 @@
+2000-06-26  Kingpin  <mthurn@tasc.com>
+
+	* VERSION 2.18 RELEASED
+
+	* test.pl: added test for multi-page gui_query
+
+	* HotBot.pm: and "next" link in new place
+
+	* HotBot.pm: fix for only one page of gui results
+
 2000-05-24  Kingpin  <mthurn@tasc.com>
 
 	* HotBot.pm: was missing first URL of native_query results

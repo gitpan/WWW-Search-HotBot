@@ -8,7 +8,7 @@ use ExtUtils::testlib;
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..6\n"; }
+BEGIN { $| = 1; print "1..8\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use WWW::Search::HotBot;
 $loaded = 1;
@@ -44,7 +44,7 @@ print STDERR "\n\n\n\n" if $debug;
 
 # This query returns 1 page of results:
 $iTest++;
-my $sQuery = '+LS'.'AM +repl'.'ication';
+my $sQuery = '+LS'.'AM +repl'.'ication +cor'.'e';
 $oSearch->native_query(
                        WWW::Search::escape_query($sQuery),
                          { 'search_debug' => $debug, },
@@ -98,6 +98,44 @@ print STDERR " + got $iResults GUI results for $sQuery, expected 1..10\n" if $de
 if (($iResults < 1) || (10 < $iResults))
   {
   print STDERR " --- got $iResults GUI results for $sQuery, but expected 1..10\n";
+  print STDOUT 'not ';
+  }
+print "ok $iTest\n";
+
+# This query returns 3 pages of results:
+$iTest++;
+# $debug = 9;
+$sQuery = 'ctil'.'etou';
+$oSearch->gui_query(
+                    WWW::Search::escape_query($sQuery),
+                      { 'search_debug' => $debug, },
+                   );
+$oSearch->maximum_to_retrieve(40);
+@aoResults = $oSearch->results();
+$iResults = scalar(@aoResults);
+print STDERR " + got $iResults GUI results for $sQuery, expected 21..30\n" if $debug;
+if (($iResults < 21) || (30 < $iResults))
+  {
+  print STDERR " --- got $iResults GUI results for $sQuery, but expected 21..30\n";
+  print STDOUT 'not ';
+  }
+print "ok $iTest\n";
+
+# This query returns many pages of results:
+$iTest++;
+# $debug = 9;
+$sQuery = 'Jar Jar must die';
+$oSearch->gui_query(
+                    WWW::Search::escape_query($sQuery),
+                      { 'search_debug' => $debug, },
+                   );
+$oSearch->maximum_to_retrieve(30);
+@aoResults = $oSearch->results();
+$iResults = scalar(@aoResults);
+print STDERR " + got $iResults GUI results for $sQuery, expected 30..\n" if $debug;
+if ($iResults < 30)
+  {
+  print STDERR " --- got $iResults GUI results for $sQuery, but expected 30..\n";
   print STDOUT 'not ';
   }
 print "ok $iTest\n";

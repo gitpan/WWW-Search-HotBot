@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.56 2000/05/17 14:03:35 mthurn Exp mthurn $
+# $Id: HotBot.pm,v 1.58 2000/06/26 16:09:25 mthurn Exp $
 
 =head1 NAME
 
@@ -297,13 +297,17 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 If it is not listed here, then it was not a meaningful nor released revision.
 
+=head2 2.18, 2000-06-26
+
+fix for only one page of gui results; and "next" link in new place
+
 =head2 2.17, 2000-05-24
 
 was still missing first URL of non-gui(?) results!
 
 =head2 2.16, 2000-05-17
 
-was missing first URL of gui_query results
+was missing first URL of gui results
 
 =head2 2.15, 2000-04-03
 
@@ -432,7 +436,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.17';
+$VERSION = '2.18';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -512,7 +516,6 @@ sub gui_query
   } # gui_query
 
 
-
 # private
 sub native_retrieve_some
   {
@@ -574,6 +577,7 @@ sub native_retrieve_some
       # <b>Returned:&nbsp;&nbsp;fewer&nbsp;than&nbsp;100&nbsp;&nbsp;<br>Results&nbsp;for&nbsp;&quot;+LSAM +replication&quot;</b><br><br>
       # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;2&nbsp;</b> <BR>
       # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;10&nbsp;</b> <a href="/?MT=Martin+Thurn&II=8&OSI=2&RPN=2&SQ=1&TR=351&BT=L">next</a>&nbsp;<font face="Arial,Helvetica,sans-serif" size=3><b>&gt;&gt;</b></font><BR>
+      # <P><FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;7&nbsp;matches&nbsp;&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;7&nbsp;</b> <P><b>1.&nbsp;<a href=/director.asp?target=http%3A%2F%2Fwww%2Epitt%2Eedu%2F%7Ethurn%2FSWB%2Fpizzahut%2Ehtml&id=1&userid=5c1bcdpuEawS&query=MT=Martin AND Thurn AND Bible AND Galoob&rsource=INK>The Star Wars Collector's Bible (Pizza Hut)</a></b><br>The Star Wars Collector's Bible Search SWB for: Pizza Hut a child company of Pepsico, Inc. 1997 promotions promotional goods plastic tumbler showing Vader & Luke on gantry (comes with red lid) ANH poster ESB poster ROJ poster in-store decorations 6.<br><font size=1><i>7/27/1999</i>  http://www.pitt.edu/~thurn/SWB/pizzahut.html<BR>See results from <a href="/?MT=Martin+AND+Thurn+AND+Bible+AND+Galoob&SQ=1&TR=7&RD=DM&Domain=www%2Epitt%2Eedu">this site only</a>.</font></p>
       my $iCount = $1 || '0';
       $iCount =~ s/\D//g;
       print STDERR "count line ($iCount) " if 2 <= $self->{'_debug'};
@@ -581,15 +585,22 @@ sub native_retrieve_some
       $state = $NEXT;
       } # we're in HEADER mode, and line has number of results
     # Stay on this line of input!
-    if ($state eq $NEXT && m|/s.hotbot.com/s.gif|)
+
+    if (($state eq $NEXT) && 
+        (
+         m|/s.hotbot.com/s.gif|
+         ||
+         m!<P><b>\d+.&nbsp;<a!))
       {
       # Actual line of input for gui_query():
       # <img src='http://s.hotbot.com/s.gif' width=1 height=4 alt=''><BR>
       print STDERR " NO next button (gui mode)" if 2 <= $self->{'_debug'};
       $state = $HITS;
-      next LINE_OF_INPUT;
       }
-    if ($state eq $NEXT && m|href="[^"?]+\?([^\"]*?)">next</a>|)
+    # Stay on this line of input!
+
+    if ((($state eq $NEXT) || ($state eq $HITS))
+        && m|href="[^"?]+\?([^\"]*?)">next</a>|)
       {
       # Actual line of input for gui_query():
       # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;10&nbsp;</b> <a href="/?MT=Martin+Thurn&II=8&OSI=2&RPN=2&SQ=1&TR=351&BT=L">next</a>&nbsp;<font face="Arial,Helvetica,sans-serif" size=3><b>&gt;&gt;</b></font><BR>
@@ -605,7 +616,7 @@ sub native_retrieve_some
       } # found "next" link in NEXT mode
     elsif ($state eq $NEXT && (
                                m|^(?:\074p\076\s)?\074b\076(\d+)\.|   ||
-                               m/<!-- BRES -->/                 
+                               m/<!-- BRES -->/
                               ))
       {
       print STDERR " no next button; " if 2 <= $self->{'_debug'};
