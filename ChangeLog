@@ -1,0 +1,9 @@
+2000-01-31  Kingpin  <mthurn@tasc.com>
+
+	* HotBot.pm (native_retrieve_some): was missing title
+
+Revision history for Perl extension WWW::Search::HotBot.
+
+0.01  Fri Jan 21 13:07:24 2000
+	- original version; created by h2xs 1.19
+
