@@ -1,20 +1,10 @@
 
-========== IMPORTANT NOTICE ==========
-
-As of 2001-10-25, www.hotbot.com is broken as follows:
-When you click the "next" link on the results page,
-it returns the same set of results all over again.
-Therefore, this release of WWW::Search::HotBot can only retrieve the first 100 hits
-(10 hits when calling gui_query).
-
-========== end of IMPORTANT NOTICE ==========
-
 This is a backend for use with the WWW::Search module.
 
 Please read the README for WWW::Search for general information.
 
 (One place to find it is
-http://www.perl.com/CPAN-local/modules/by-module/WWW/WWW-Search-2.24.readme
+http://www.perl.com/CPAN-local/modules/by-module/WWW/WWW-Search-2.45.readme
 )
 
 Read the ChangeLog file in this distribution to see what is new with

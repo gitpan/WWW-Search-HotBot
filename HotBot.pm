@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.72 2003-02-21 00:24:49-05 kingpin Exp kingpin $
+# $Id: HotBot.pm,v 1.75 2003/12/30 03:13:56 Daddy Exp $
 
 =head1 NAME
 
@@ -219,7 +219,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.28';
+$VERSION = '2.29';
 $MAINTAINER = 'Martin Thurn <mthurn@cpan.org>';
 
 use Carp ();
@@ -277,6 +277,15 @@ sub native_setup_search
   } # native_setup_search
 
 
+sub preprocess_results_page_OFF
+  {
+  my $self = shift;
+  my $s = shift;
+  print STDERR "\n$s\n";
+  return $s;
+  } # preprocess_results_page
+
+
 sub parse_tree
   {
   my $self = shift;
@@ -304,53 +313,66 @@ sub parse_tree
         } # if
       } # if
     } # foreach
-  my @aoTD = $oTree->look_down(
-                               '_tag' => 'p',
-                               'class' => 'res',
-                              );
- TD_TAG:
-  foreach my $oTD (@aoTD)
+  my @aoP = $oTree->look_down(
+                              '_tag' => 'p',
+                              'class' => 'res',
+                             );
+ P_TAG:
+  foreach my $oP (@aoP)
     {
-    my ($sURL, $sDesc, $sDate, $sSize, $sScore);
-    next TD_TAG unless ref $oTD;
-    print STDERR " +   try oTD ===", $oTD->as_text, "===\n" if 2 <= $self->{_debug};
-    my $oA = $oTD->look_down('_tag', 'a',
-                            );
-    next TD_TAG unless (ref $oA);
+    my ($sDesc, $sDate, $sSize, $sScore);
+    $sDesc = '';
+    next P_TAG unless ref $oP;
+    print STDERR " +   try oP ===", $oP->as_text, "===\n" if 2 <= $self->{_debug};
+    my $oA = $oP->look_down('_tag', 'a');
+    next P_TAG unless (ref $oA);
+    my $oSPANurl = $oP->look_down('_tag' => 'span',
+                                  'class' => 'grn',
+                                 );
+    next P_TAG unless (ref $oSPANurl);
     my $sTitle = $oA->as_text;
     print STDERR " +   found title ===$sTitle===\n" if 2 <= $self->{_debug};
-    my $oABS = $oTD->look_down('_tag' => 'abstract');
-    if (ref $oABS)
-      {
-      $sDesc = $oABS->as_text;
-      } # if
-    my @aoSPAN = $oTD->look_down(
+    my $sURL = $self->absurl($self->{_prev_url}, $oSPANurl->as_text);
+    print STDERR " +   found url ===$sURL===\n" if 2 <= $self->{_debug};
+    my @aoSPAN = $oP->look_down(
                                  '_tag' => 'span',
                                  'class' => 'sub',
                                 );
     my $oSPAN = shift(@aoSPAN);
     if (ref $oSPAN)
       {
-      $sURL = $oSPAN->as_text;
-      } # if
-    $oSPAN = shift(@aoSPAN);
-    if (ref $oSPAN)
-      {
       $sDate = $oSPAN->as_text;
-      $sDate =~ s!\A\s-\s!!;
+      $sDate =~ s!\A\s+-\s+!!;
+      $oSPAN->detach;
+      $oSPAN->delete;
       } # if
     $oSPAN = shift(@aoSPAN);
     if (ref $oSPAN)
       {
       $sSize = $oSPAN->as_text;
-      $sSize =~ s!\A\s-\s!!;
-      $sSize =~ s![\012\015].*\Z!!;
+      $sSize =~ s!\A\s+-\s+!!;
+      $sSize =~ s!\s+\Z!!;
+      $oSPAN->detach;
+      $oSPAN->delete;
       } # if
-    my $s = $oTD->as_HTML;
+    # Delete all remaining <SPAN>s:
+    @aoSPAN = $oP->look_down(
+                             '_tag' => 'span',
+                            );
+    foreach my $oSPAN (@aoSPAN)
+      {
+      next unless ref $oSPAN;
+      $oSPAN->detach;
+      $oSPAN->delete;
+      } # foreach
+    my $s = $oP->as_HTML;
     if ($s =~ m/<!--\s*REL\s(\d+%)\s*-->/)
       {
       $sScore = $1;
       } # if
+    $oA->detach;
+    $oA->delete;
+    $sDesc = $oP->as_text;
 
     my $hit = new WWW::Search::Result;
     $hit->add_url($sURL);
@@ -363,9 +385,9 @@ sub parse_tree
     $self->{'_num_hits'}++;
     $hits_found++;
     # Make it faster to find the 'next' link(?):
-    $oTD->detach;
-    $oTD->delete;
-    } # foreach $oB
+    $oP->detach;
+    $oP->delete;
+    } # foreach $oP
   # Find the next link, if any:
   my @aoA = $oTree->look_down('_tag', 'a',
                               sub { $_[0]->as_text =~ m!\A[\ \t\r\n]+Next[\ \t\r\n]*\Z!s } );

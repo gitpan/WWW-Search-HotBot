@@ -1,3 +1,11 @@
+2003-12-29  Kingpin  <mthurn@verizon.net>
+
+	* HotBot.pm (parse_tree): FIX parsing of new hotbot.com output
+
+	* t/basic.t: new file
+
+	* t/gui.t: new file
+
 2003-02-20  Kingpin  <mthurn@megapipe.net>
 
 	* HotBot.pm (parse_tree): overhaul for new output format
