@@ -1,9 +1,25 @@
+2000-02-08  Kingpin  <mthurn@tasc.com>
+
+	* HotBot.pm (native_retrieve_some): BUGFIX when no "next" button during GUI results
+
+2000-02-07  Kingpin  <mthurn@tasc.com>
+
+	* Makefile.PL (MY::postamble): add code for 'make update'
+
+	* update: new program for updating parser test data (uses WWW::Search::Test)
+
+	* test.pl: added parser test cases
+
+2000-02-01  Kingpin  <mthurn@tasc.com>
+
+	* VERSION 2.13 RELEASED	
+	
 2000-01-31  Kingpin  <mthurn@tasc.com>
 
 	* HotBot.pm (native_retrieve_some): was missing title
 
 Revision history for Perl extension WWW::Search::HotBot.
 
-0.01  Fri Jan 21 13:07:24 2000
+2.12  Fri Jan 21 13:07:24 2000
 	- original version; created by h2xs 1.19
 

@@ -1,7 +1,7 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.50 2000/01/31 16:56:03 mthurn Exp $
+# $Id: HotBot.pm,v 1.52 2000/02/08 15:54:23 mthurn Exp $
 
 =head1 NAME
 
@@ -39,7 +39,7 @@ If you want to send HotBot a boolean phrase, call native_query like this:
   $oSearch->native_query(escape_query('Oz AND Dorothy NOT Australia'), {'SM' => 'B'});
 
 If you want perform a query with the same default options as if a user
-typed it inthe browser window, call $oSearch->gui_query($sQuery)
+typed it in the browser window, call $oSearch->gui_query($sQuery)
 instead of native_query(...).
 
 See below for other query-handling options.
@@ -300,6 +300,10 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 If it''s not listed here, then it wasn''t a meaningful nor released revision.
 
+=head2 2.14, 2000-02-01
+
+testing now uses WWW::Search::Test module
+
 =head2 2.13, 2000-01-31
 
 bugfix: was missing title
@@ -415,21 +419,16 @@ Fixed and revamped by Martin Thurn.
 package WWW::Search::HotBot;
 
 require Exporter;
-@EXPORT = qw();
-@EXPORT_OK = qw();
-@ISA = qw(WWW::Search Exporter);
-$VERSION = '2.13';
+@EXPORT = qw( );
+@EXPORT_OK = qw( );
+@ISA = qw( WWW::Search Exporter );
 
+$VERSION = '2.14';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
-$TEST_CASES = <<"ENDTESTCASES";
-&test('HotBot', '$MAINTAINER', 'zero', \$bogus_query, \$TEST_EXACTLY);
-&test('HotBot', '$MAINTAINER', 'one', 'LSAM replication', \$TEST_RANGE, 2,80);
-&test('HotBot', '$MAINTAINER', 'two', 'Bo'.'ss Na'.'ss', \$TEST_GREATER_THAN, 101);
-ENDTESTCASES
 
 use Carp ();
 use WWW::Search qw( generic_option strip_tags );
-require WWW::SearchResult;
+use WWW::SearchResult;
 use URI::Escape;
 
 # private
@@ -526,7 +525,7 @@ sub native_retrieve_some
   if (!$response->is_success) 
     {
     return undef;
-    };
+    } # if
 
   print STDERR "\n *   got response" if $self->{'_debug'};
   $self->{'_next_url'} = undef;
@@ -539,6 +538,7 @@ sub native_retrieve_some
   my ($hit) = ();
   my $sHitPattern = quotemeta '<font face="verdana&#44;arial&#44;helvetica" size="2">';
   my $WHITESPACE = '(\s|&nbsp;)';
+ LINE_OF_INPUT:
   foreach ($self->split_lines($response->content()))
     {
     s/\r$//;  # delete DOS carriage-return
@@ -572,6 +572,14 @@ sub native_retrieve_some
       $state = $NEXT;
       } # we're in HEADER mode, and line has number of results
     # Stay on this line of input!
+    if ($state eq $NEXT && m|http://s.hotbot.com/s.gif|)
+      {
+      # Actual line of input for gui_query():
+      # <img src='http://s.hotbot.com/s.gif' width=1 height=4 alt=''><BR>
+      print STDERR " NO next button (gui mode)" if 2 <= $self->{'_debug'};
+      $state = $HITS;
+      next LINE_OF_INPUT;
+      }
     if ($state eq $NEXT && m|href="[^"?]+\?([^\"]*?)">next</a>|)
       {
       # Actual line of input for gui_query():
