@@ -9,10 +9,3 @@ WriteMakefile(
                              },
 );
 
-sub MY::postamble
-  {
-  return '
-update: pure_all
-	PERL_DL_NONLAZY=1 $(FULLPERL) -I$(INST_ARCHLIB) -I$(INST_LIB) update HotBot
-';
-  } # MY::postamble

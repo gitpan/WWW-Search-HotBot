@@ -1,3 +1,17 @@
+2000-05-17  Kingpin  <mthurn@tasc.com>
+
+	* VERSION 2.16 RELEASED
+
+	* HotBot.pm: was missing first URL of gui_query results
+
+	* HotBot.pm: fix parsing when no "next" page of results
+
+2000-04-03  Kingpin  <mthurn@tasc.com>
+
+	* VERSION 2.15 RELEASED
+
+	* HotBot.pm (gui_query): new arguments
+
 2000-02-08  Kingpin  <mthurn@tasc.com>
 
 	* VERSION 2.14 RELEASED!

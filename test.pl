@@ -44,16 +44,17 @@ print STDERR "\n\n\n\n" if $debug;
 
 # This query returns 1 page of results:
 $iTest++;
+my $sQuery = '+LS'.'AM +repl'.'ication';
 $oSearch->native_query(
-                       WWW::Search::escape_query('+LS'.'AM +repl'.'ication'),
-                      { 'search_debug' => $debug, },
+                       WWW::Search::escape_query($sQuery),
+                         { 'search_debug' => $debug, },
                       );
 @aoResults = $oSearch->results();
 $iResults = scalar(@aoResults);
-# print STDERR " + got $iResults results for LS","AM repl","ication\n";
+# print STDERR " + got $iResults results for $sQuery\n";
 if (($iResults < 2) || (49 < $iResults))
   {
-  print STDERR " --- got $iResults results for 'LS","AM repl","ication', but expected 2..49\n";
+  print STDERR " --- got $iResults results for $sQuery, but expected 2..49\n";
   print STDOUT 'not ';
   }
 print "ok $iTest\n";

@@ -1,11 +1,11 @@
 # HotBot.pm
 # by Wm. L. Scheding and Martin Thurn
 # Copyright (C) 1996-1998 by USC/ISI
-# $Id: HotBot.pm,v 1.53 2000/04/03 14:15:06 mthurn Exp $
+# $Id: HotBot.pm,v 1.56 2000/05/17 14:03:35 mthurn Exp $
 
 =head1 NAME
 
-WWW::Search::HotBot - backend for searching www.hotbot.com
+WWW::Search::HotBot - backend for searching hotbot.lycos.com
 
 =head1 SYNOPSIS
 
@@ -25,6 +25,9 @@ F<http://www.hotbot.com>.
 This class exports no public interface; all interaction should
 be done through L<WWW::Search> objects.
 
+WWW::Search::HotBot uses hotbot.com's text-only interface, which can
+be found at http://hotbot.lycos.com/text
+
 The default behavior is for HotBot to look for "any of" the query
 terms: 
 
@@ -40,7 +43,7 @@ If you want to send HotBot a boolean phrase, call native_query like this:
 
 If you want perform a query with the same default options as if a user
 typed it in the browser window, call $oSearch->gui_query($sQuery)
-instead of native_query(...).
+instead of ->native_query().
 
 See below for other query-handling options.
 
@@ -277,11 +280,6 @@ approximate_result_count.
 
 Please tell the author if you find any!
 
-=head1 TESTING
-
-This module adheres to the C<WWW::Search> test suite mechanism. 
-See $TEST_CASES below.
-
 =head1 AUTHOR
 
 As of 1998-02-02, C<WWW::Search::HotBot> is maintained by Martin Thurn
@@ -299,6 +297,10 @@ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 =head1 VERSION HISTORY
 
 If it''s not listed here, then it wasn''t a meaningful nor released revision.
+
+=head2 2.16, 2000-05-17
+
+was missing first URL of gui_query results
 
 =head2 2.15, 2000-04-03
 
@@ -427,7 +429,7 @@ require Exporter;
 @EXPORT_OK = qw( );
 @ISA = qw( WWW::Search Exporter );
 
-$VERSION = '2.15';
+$VERSION = '2.16';
 $MAINTAINER = 'Martin Thurn <MartinThurn@iname.com>';
 
 use Carp ();
@@ -540,7 +542,7 @@ sub native_retrieve_some
   my ($state) = ($TITLE);
   my ($hit) = ();
   my $sHitPattern = quotemeta '<font face="verdana&#44;arial&#44;helvetica" size="2">';
-  my $WHITESPACE = '(\s|&nbsp;)';
+  my $WHITESPACE = '(\s|&nbsp;|<BR>)';
  LINE_OF_INPUT:
   foreach ($self->split_lines($response->content()))
     {
@@ -561,11 +563,12 @@ sub native_retrieve_some
       } # We're in TITLE mode, and line has title
 
     elsif ($state eq $HEADER && 
-           m!(?:Returned:|WEB${WHITESPACE}RESULTS$WHITESPACE+</B></FONT>)[^<]+?(?:$WHITESPACE|fewer|less|more|than)+([\d,]+)$WHITESPACE+(?:Matches.)?!i)
+           m!(?:Returned:|WEB${WHITESPACE}RESULTS$WHITESPACE+</B></FONT>)[^<]*?(?:$WHITESPACE|fewer|less|more|than)+([\d,]+)$WHITESPACE+(?:Matches|Results)?!i)
       {
       # Actual line of input is:
       # <b>Returned:&nbsp;69&nbsp;Matches&nbsp;
       # <b>Returned:&nbsp;&nbsp;more&nbsp;than&nbsp;500,000&nbsp;&nbsp;
+      # <b>Returned:&nbsp;&nbsp;fewer&nbsp;than&nbsp;100&nbsp;&nbsp;<br>Results&nbsp;for&nbsp;&quot;+LSAM +replication&quot;</b><br><br>
       # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;2&nbsp;</b> <BR>
       # <FONT size=1 color=red><B>WEB&nbsp;RESULTS &nbsp;</B></FONT>&nbsp;fewer&nbsp;than&nbsp;500&nbsp;&nbsp;<b>&nbsp;1&nbsp;-&nbsp;10&nbsp;</b> <a href="/?MT=Martin+Thurn&II=8&OSI=2&RPN=2&SQ=1&TR=351&BT=L">next</a>&nbsp;<font face="Arial,Helvetica,sans-serif" size=3><b>&gt;&gt;</b></font><BR>
       my $iCount = $1 || '0';
@@ -599,7 +602,7 @@ sub native_retrieve_some
       } # found "next" link in NEXT mode
     elsif ($state eq $NEXT && (
                                m|^(?:\074p\076\s)?\074b\076(\d+)\.|   ||
-                               m/<!-- BRES --> /                 
+                               m/<!-- BRES -->/                 
                               ))
       {
       print STDERR " no next button; " if 2 <= $self->{'_debug'};
@@ -610,7 +613,7 @@ sub native_retrieve_some
       # pattern matches this line (again)!
       }
 
-    if ($state eq $HITS && m|^(?:\074p\076)?\s*\074b\076(\d+)\.|i )
+    if ($state eq $HITS && m|^(?:\074p\076\s?)*\074b\076(\d+)\.|i )
       {
       print STDERR "multihit line" if 2 <= $self->{'_debug'};
       # Actual lines of input for gui_query():
@@ -755,4 +758,3 @@ SM = (selection) search type
      url = links to this URL
      B = Boolean phrase     
 
-Here is 
